@@ -1,3 +1,5 @@
+using System.Threading.RateLimiting;
+using Microsoft.AspNetCore.RateLimiting;
 using Dsw2025Tpi.Application.Services;
 using Dsw2025Tpi.Data;
 using Dsw2025Tpi.Data.Repositories;
@@ -51,6 +53,13 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 builder.Services.AddProblemDetails();
 
 var app = builder.Build();
+builder.Services.AddRateLimiter(options => {
+    options.AddFixedWindowLimiter("Global", policy => {
+        policy.Window = TimeSpan.FromSeconds(30);
+        policy.PermitLimit = 100;
+    });
+    options.RejectionStatusCode = 429; // Too Many Requests
+});
 
 // Seed customers from embedded JSON
 using (var scope = app.Services.CreateScope())
@@ -70,6 +79,7 @@ using (var scope = app.Services.CreateScope())
 
 // Middleware pipeline
 app.UseCors("DefaultCorsPolicy");
+app.UseRateLimiter();
 app.UseHttpsRedirection();
 
 app.UseAuthentication();
