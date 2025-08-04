@@ -1,53 +1,85 @@
-
 using Dsw2025Tpi.Application.Services;
 using Dsw2025Tpi.Data;
 using Dsw2025Tpi.Data.Repositories;
+using Dsw2025Tpi.Domain.Entities;
 using Dsw2025Tpi.Domain.Interfaces;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
+using System.Text;
 
-namespace Dsw2025Tpi.Api;
+var builder = WebApplication.CreateBuilder(args);
 
-public class Program
+// Add DbContext
+builder.Services.AddDbContext<Dsw2025TpiContext>(options =>
+    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+
+// Register repositories and services
+builder.Services.AddScoped<IRepository, EfRepository>();
+builder.Services.AddTransient<ProductsManagementService>();
+builder.Services.AddTransient<OrdersManagementService>();
+
+// Add controllers
+builder.Services.AddControllers();
+
+// Configure CORS
+builder.Services.AddCors(options =>
 {
-    public static void Main(string[] args)
+    options.AddPolicy("DefaultCorsPolicy", policy =>
+        policy.WithOrigins("https://tu-frontend.com")
+              .AllowAnyHeader()
+              .AllowAnyMethod());
+});
+
+// Configure Authentication (JWT)
+builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(options =>
     {
-        var builder = WebApplication.CreateBuilder(args);
-
-        // Add services to the container.
-
-        builder.Services.AddControllers();
-        // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
-        builder.Services.AddEndpointsApiExplorer();
-        builder.Services.AddSwaggerGen();
-        builder.Services.AddHealthChecks();
-
-
-		builder.Services.AddDbContext<Dsw2025TpiContext>(options =>
-			options.UseSqlServer
-            (
-                builder.Configuration.GetConnectionString("DefaultConnection")
-            ));
-		builder.Services.AddScoped<IRepository, EfRepository>();
-		builder.Services.AddTransient<ProductsManagementService>();
-        builder.Services.AddTransient<OrdersManagementService>();
-
-        var app = builder.Build();
-
-        // Configure the HTTP request pipeline.
-        if (app.Environment.IsDevelopment())
+        options.TokenValidationParameters = new TokenValidationParameters
         {
-            app.UseSwagger();
-            app.UseSwaggerUI();
+            ValidateIssuer = true,
+            ValidateAudience = true,
+            ValidateLifetime = true,
+            ValidateIssuerSigningKey = true,
+            ValidIssuer = builder.Configuration["Jwt:Issuer"],
+            ValidAudience = builder.Configuration["Jwt:Audience"],
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"]))
+        };
+    });
+
+// Add global exception handler
+builder.Services.AddProblemDetails();
+
+var app = builder.Build();
+
+// Seed customers from embedded JSON
+using (var scope = app.Services.CreateScope())
+{
+    var context = scope.ServiceProvider.GetRequiredService<Dsw2025TpiContext>();
+    if (!context.Customers.Any())
+    {
+        var json = File.ReadAllText("Data/Seed/customers.json");
+        var customers = System.Text.Json.JsonSerializer.Deserialize<List<Customer>>(json);
+        if (customers != null)
+        {
+            context.Customers.AddRange(customers);
+            context.SaveChanges();
         }
-
-        app.UseHttpsRedirection();
-
-        app.UseAuthorization();
-
-        app.MapControllers();
-        
-        app.MapHealthChecks("/healthcheck");
-
-        app.Run();
     }
 }
+
+// Middleware pipeline
+app.UseCors("DefaultCorsPolicy");
+app.UseHttpsRedirection();
+
+app.UseAuthentication();
+app.UseAuthorization();
+
+// Global exception handler
+app.UseExceptionHandler("/error");
+app.MapControllers();
+
+// Minimal endpoint for error handling
+app.MapGet("/error", () => Results.Problem("An unexpected error occurred."));
+
+app.Run();

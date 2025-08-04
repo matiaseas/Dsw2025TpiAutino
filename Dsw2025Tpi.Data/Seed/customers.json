@@ -1,0 +1,17 @@
+﻿[
+  {
+    "Id": "a1b2c3d4-e5f6-7890-1234-567890abcdef",
+    "Name": "Juan Perez",
+    "Email": "juan.perez@gmail.com"
+  },
+  {
+    "Id": "b2c3d4e5-f6a7-8901-2345-67890abcdef1",
+    "Name": "María Gómez",
+    "Email": "maria.gomez@hotmail.com"
+  },
+  {
+    "Id": "c3d4e5f6-a7b8-9012-3456-7890abcdef12",
+    "Name": "Carlos Ruiz",
+    "Email": "carlos.ruiz@googlemail.com"
+  }
+]
