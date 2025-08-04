@@ -4,10 +4,10 @@ Este proyecto corresponde al Trabajo Práctico Integrador de la materia **Desarr
 
 ## 👥 Integrantes
 
-|     Apellido, Nombre     | Legajo |                         Rol                          |
-|--------------------------|--------|------------------------------------------------------|
-| Gastón Marcos Villarreal | 48314  | Empezó a programar la solución en otro repositorio   |
-| Matías Daniel Autino     | 55802  | Terminó de programar la solución en este ropositorio |
+|     Apellido, Nombre      | Legajo |                         Rol                          |
+|---------------------------|--------|------------------------------------------------------|
+| Gastón, Marcos Villarreal | 48314  | Empezó a programar la solución en otro repositorio   |
+| Matías, Daniel Autino     | 55802  | Terminó de programar la solución en este ropositorio |
 
 ---
 
@@ -115,7 +115,7 @@ https://localhost:5001/swagger
 ✔ Carga inicial de clientes desde JSON  
 ✔ DBContext completo con relaciones y restricciones  
 ✔ Servicios y controladores operativos  
-🔜 Autenticación y autorización JWT (implementado no testeado)
+🔜 Autenticación y autorización JWT (implementado más no testeado)
 
 ---
 
