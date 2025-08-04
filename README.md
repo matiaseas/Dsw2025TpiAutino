@@ -4,10 +4,10 @@ Este proyecto corresponde al Trabajo Práctico Integrador de la materia **Desarr
 
 ## 👥 Integrantes
 
-| Nombre Completo           | Legajo | Rol                |
-|--------------------------|--------|--------------------|
-| Gastón Marcos Villarreal | 48314  | Programador inicial |
-| Matías Daniel Autino     | 55802  | Programador final   |
+|     Apellido, Nombre     | Legajo |                         Rol                          |
+|--------------------------|--------|------------------------------------------------------|
+| Gastón Marcos Villarreal | 48314  | Empezó a programar la solución en otro repositorio   |
+| Matías Daniel Autino     | 55802  | Terminó de programar la solución en este ropositorio |
 
 ---
 
@@ -36,7 +36,7 @@ Este proyecto corresponde al Trabajo Práctico Integrador de la materia **Desarr
 
 - [.NET SDK 8.0+](https://dotnet.microsoft.com/download)
 - [SQL Server](https://www.microsoft.com/sql-server/sql-server-downloads)
-- Visual Studio 2022 o VS Code (opcional)
+- Visual Studio 2022
 
 ### 2. Clonar el repositorio
 
@@ -81,12 +81,12 @@ https://localhost:5001/swagger
 
 ### Productos
 
-| Método | Ruta               | Descripción                              |
-|--------|--------------------|------------------------------------------|
-| POST   | /api/products       | Crear nuevo producto                     |
-| GET    | /api/products       | Listar productos disponibles             |
-| GET    | /api/products/{id}  | Obtener producto por ID                  |
-| PUT    | /api/products/{id}  | Actualizar un producto                   |
+| Método | Ruta                | Descripción                                  |
+|--------|---------------------|----------------------------------------------|
+| POST   | /api/products       | Crear nuevo producto                         |
+| GET    | /api/products       | Listar productos disponibles                 |
+| GET    | /api/products/{id}  | Obtener producto por ID                      |
+| PUT    | /api/products/{id}  | Actualizar un producto                       |
 | PATCH  | /api/products/{id}  | Inhabilitar un producto (`IsActive = false`) |
 
 ### Órdenes
@@ -115,16 +115,10 @@ https://localhost:5001/swagger
 ✔ Carga inicial de clientes desde JSON  
 ✔ DBContext completo con relaciones y restricciones  
 ✔ Servicios y controladores operativos  
-🔜 Autenticación y autorización JWT (en progreso)
+🔜 Autenticación y autorización JWT (implementado no testeado)
 
 ---
 
 ## 🧪 Tests
 
 Los endpoints pueden probarse desde Swagger (`/swagger`) o utilizando Postman/Insomnia.
-
----
-
-## 📄 Licencia
-
-Proyecto académico UTN - Facultad Regional Tucumán (2025)
