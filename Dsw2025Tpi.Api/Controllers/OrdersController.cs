@@ -1,9 +1,6 @@
 ﻿using Dsw2025Tpi.Application.DTOs;
 using Dsw2025Tpi.Application.Services;
 using Microsoft.AspNetCore.Mvc;
-using System;
-using System.Collections.Generic;
-using System.Threading.Tasks;
 
 namespace Dsw2025Tpi.Api.Controllers
 {

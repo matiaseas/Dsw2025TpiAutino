@@ -1,11 +1,10 @@
-using System.Threading.RateLimiting;
-using Microsoft.AspNetCore.RateLimiting;
 using Dsw2025Tpi.Application.Services;
 using Dsw2025Tpi.Data;
 using Dsw2025Tpi.Data.Repositories;
 using Dsw2025Tpi.Domain.Entities;
 using Dsw2025Tpi.Domain.Interfaces;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
@@ -51,15 +50,17 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 
 // Add global exception handler
 builder.Services.AddProblemDetails();
-
-var app = builder.Build();
-builder.Services.AddRateLimiter(options => {
-    options.AddFixedWindowLimiter("Global", policy => {
+builder.Services.AddRateLimiter(options =>
+{
+    options.AddFixedWindowLimiter("Global", policy =>
+    {
         policy.Window = TimeSpan.FromSeconds(30);
         policy.PermitLimit = 100;
     });
     options.RejectionStatusCode = 429; // Too Many Requests
 });
+
+var app = builder.Build();
 
 // Seed customers from embedded JSON
 using (var scope = app.Services.CreateScope())

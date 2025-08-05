@@ -1,10 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace Dsw2025Tpi.Application.DTOs
+﻿namespace Dsw2025Tpi.Application.DTOs
 {
 
     /// Parametros de consulta para paginación de órdenes.
