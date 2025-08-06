@@ -1,0 +1,72 @@
+[
+  {
+    "id": 1,
+    "name": "Juan Pérez",
+    "email": "juanpérez@example.com",
+    "phoneNumber": "+541163354044",
+    "orders": []
+  },
+  {
+    "id": 2,
+    "name": "Ana Gómez",
+    "email": "anagómez@example.com",
+    "phoneNumber": "+541120955605",
+    "orders": []
+  },
+  {
+    "id": 3,
+    "name": "Carlos Ruiz",
+    "email": "carlosruiz@example.com",
+    "phoneNumber": "+541151392619",
+    "orders": []
+  },
+  {
+    "id": 4,
+    "name": "Lucía Fernández",
+    "email": "lucíafernández@example.com",
+    "phoneNumber": "+541135032500",
+    "orders": []
+  },
+  {
+    "id": 5,
+    "name": "Martín López",
+    "email": "martínlópez@example.com",
+    "phoneNumber": "+541155672187",
+    "orders": []
+  },
+  {
+    "id": 6,
+    "name": "Sofía Martínez",
+    "email": "sofíamartínez@example.com",
+    "phoneNumber": "+541177400489",
+    "orders": []
+  },
+  {
+    "id": 7,
+    "name": "Diego Torres",
+    "email": "diegotorres@example.com",
+    "phoneNumber": "+541168433560",
+    "orders": []
+  },
+  {
+    "id": 8,
+    "name": "María Álvarez",
+    "email": "maríaálvarez@example.com",
+    "phoneNumber": "+541165050997",
+    "orders": []
+  },
+  {
+    "id": 9,
+    "name": "Pedro González",
+    "email": "pedrogonzález@example.com",
+    "phoneNumber": "+541171299114",
+    "orders": []
+  },
+  {
+    "id": 10,
+    "name": "Valentina Romero",
+    "email": "valentinaromero@example.com",
+    "phoneNumber": "+541134984919",
+    "orders": []
+  }
+]

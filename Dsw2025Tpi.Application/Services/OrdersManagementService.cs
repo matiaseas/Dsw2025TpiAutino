@@ -1,160 +1,159 @@
-﻿using Dsw2025Tpi.Application.DTOs;
+﻿using Dsw2025Ej15.Application.Exceptions;
+using Dsw2025Tpi.Application.Dtos;
+using Dsw2025Tpi.Application.Interfaces;
 using Dsw2025Tpi.Domain.Entities;
 using Dsw2025Tpi.Domain.Interfaces;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
 
-namespace Dsw2025Tpi.Application.Services
+namespace Dsw2025Tpi.Application.Services;
+
+public class OrdersManagementService : IOrdersManagementService
 {
-    public class OrdersManagementService
+    private readonly IRepository _repository;
+
+
+    public OrdersManagementService(IRepository repository)
     {
-        private readonly IRepository _repository;
+        _repository = repository;
+    }
 
-        public OrdersManagementService(IRepository repository)
+    public async Task<OrderModel.OrderResponse> AddOrder(OrderModel.OrderRequest request)
+    {
+        var customer = await _repository.GetById<Customer>(request.CustomerId);
+        if (customer == null)
+            throw new EntityNotFoundException($"No se encontró el cliente con ID {request.CustomerId}");
+
+        var orderItems = new List<OrderItem>();
+        foreach (var item in request.OrderItems)
         {
-            _repository = repository;
-        }
+            var product = await _repository.GetById<Product>(item.ProductId);
+            if (product == null)
+                throw new EntityNotFoundException($"No se encontró el producto con ID {item.ProductId}");
+            if (!product.IsActive)
+                throw new InvalidOperationException($" El producto {product.Name} esta inactivo");
 
-        /// <summary>
-        /// Crea una nueva orden, valida stock y calcula montos.
-        /// </summary>
-        public async Task<OrderDto> CreateOrderAsync(OrderCreateDto dto)
-        {
-            // Validar cliente existente
-            var customer = await _repository.GetById<Customer>(dto.CustomerId);
-            if (customer == null)
-                throw new ArgumentException("Cliente no encontrado.");
+            if (!product.HasSufficientStock(item.Quantity))
+                throw new InvalidOperationException($"Stock insuficiente para el producto {product.Name}.");
+            product.DecreaseStock(item.Quantity);
+            
+            await _repository.Update(product);
 
-            // Crear entidad Orden
-            var order = new Order(dto.CustomerId, DateTime.UtcNow);
-            decimal subtotal = 0;
-
-            // Procesar cada item
-            foreach (var item in dto.Items)
+            var orderItem = new OrderItem
             {
-                var product = await _repository.GetById<Product>(item.ProductId);
-                if (product == null)
-                    throw new ArgumentException($"Producto {item.ProductId} no existe.");
-                if (item.Quantity <= 0 || item.Quantity > product.StockQuantity)
-                    throw new ArgumentException($"Cantidad inválida para producto {product.Name}.");
-
-                // Reducir stock
-                product.StockQuantity -= item.Quantity;
-                await _repository.Update(product);
-
-                // Agregar detalle a la orden
-                order.AddItem(product.Id, product.Name, product.CurrentUnitPrice, item.Quantity);
-                subtotal += product.CurrentUnitPrice * item.Quantity;
-            }
-
-            // Asignar montos
-            order.SetSubtotal(subtotal);
-            order.SetTotal(subtotal); // si no hay impuestos adicionales
-
-            // Guardar orden
-            await _repository.Add(order);
-
-            // Mapear a DTO
-            var response = new OrderDto(
-                order.Id,
-                order.CustomerId,
-                order.CreatedAt,
-                order.Subtotal,
-                order.Total,
-                order.Status.ToString(),
-                order.Items.Select(i => new OrderItemDetailDto(
-                    i.ProductId,
-                    i.ProductName,
-                    i.UnitPrice,
-                    i.Quantity,
-                    i.LineTotal))
-            );
-
-            return response;
+                ProductId = product.Id,
+                Product = product,
+                Quantity = item.Quantity,
+                UnitPrice = product.CurrentUnitPrice
+            };
+            orderItem.SubTotal = orderItem.CalculateSubTotal();
+            orderItems.Add(orderItem);
         }
 
-        /// <summary>
-        /// Recupera órdenes paginadas.
-        /// </summary>
-        public async Task<PagedResult<OrderDto>> GetOrdersAsync(int pageNumber, int pageSize)
-        {
-            var allOrders = await _repository.GetAll<Order>();
-            var ordersList = allOrders?.ToList() ?? new List<Order>();
-            var total = ordersList.Count;
-            var pageItems = ordersList
-                .Skip((pageNumber - 1) * pageSize)
-                .Take(pageSize)
-                .ToList();
+        var order = new Order(
+            request.ShippingAddress,
+            request.BillingAddress,
+            request.Notes,
+            orderItems,
+            request.CustomerId
+        );
 
-            var dtos = pageItems.Select(order => new OrderDto(
-                order.Id,
-                order.CustomerId,
-                order.CreatedAt,
-                order.Subtotal,
-                order.Total,
-                order.Status.ToString(),
-                order.Items.Select(i => new OrderItemDetailDto(
-                    i.ProductId,
-                    i.ProductName,
-                    i.UnitPrice,
-                    i.Quantity,
-                    i.LineTotal))))
-                .ToList();
+        await _repository.Add(order);
 
-            return new PagedResult<OrderDto>(dtos, total, pageNumber, pageSize);
-        }
+        var response = new OrderModel.OrderResponse(
+            order.Id,
+            order.CustomerId,
+            order.ShippingAddress,
+            order.BillingAddress,
+            order.Notes,
+            orderItems.Select(oi => new OrderModel.OrderItemResponse(
+                oi.ProductId,
+                oi.Product.Name,
+                oi.UnitPrice,
+                oi.Quantity,
+                oi.SubTotal
+            )).ToList(),
+            order.Status.ToString()
+        );
 
-        /// <summary>
-        /// Obtiene una orden por su Id.
-        /// </summary>
-        public async Task<OrderDto?> GetOrderByIdAsync(Guid id)
-        {
-            var order = await _repository.GetById<Order>(id, "Items");
-            if (order == null)
-                return null;
+        return response;
+    }
 
-            return new OrderDto(
-                order.Id,
-                order.CustomerId,
-                order.CreatedAt,
-                order.Subtotal,
-                order.Total,
-                order.Status.ToString(),
-                order.Items.Select(i => new OrderItemDetailDto(
-                    i.ProductId,
-                    i.ProductName,
-                    i.UnitPrice,
-                    i.Quantity,
-                    i.LineTotal)));
-        }
+    public async Task<OrderModel.OrderResponse?> GetOrderById(Guid id)
+    {
+        var order = await _repository.GetById<Order>(id, include: new[] { "OrderItems", "OrderItems.Product" });
+        if (order == null)
+            throw new EntityNotFoundException($"No se encontró la orden con ID {id}");
 
-        /// <summary>
-        /// Actualiza el estado de una orden.
-        /// </summary>
-        public async Task<OrderDto?> UpdateOrderStatusAsync(Guid id, string status)
-        {
-            var order = await _repository.GetById<Order>(id);
-            if (order == null)
-                return null;
+        return new OrderModel.OrderResponse(
+            order.Id,
+            order.CustomerId,
+            order.ShippingAddress,
+            order.BillingAddress,
+            order.Notes,
+            order.OrderItems.Select(oi => new OrderModel.OrderItemResponse(
+                oi.ProductId,
+                oi.Product.Name,
+                oi.UnitPrice,
+                oi.Quantity,
+                oi.SubTotal)).ToList(),
+            order.Status.ToString()
+        );
+    }
 
-            // Validar y asignar nuevo estado
-            if (!Enum.TryParse<OrderStatus>(status, true, out var newStatus))
-                throw new ArgumentException("Estado de orden inválido.");
+    public async Task<List<OrderModel.OrderResponse>?> GetOrders()
+    {
+        var orders = await _repository.GetAll<Order>(include: new[] { "OrderItems", "OrderItems.Product" });
+        if (orders == null || !orders.Any())
+            throw new EntityNotFoundException("No se encontraron órdenes.");
 
-            order.UpdateStatus(newStatus);
-            await _repository.Update(order);
+        return orders.Select(o => new OrderModel.OrderResponse(
+        o.Id,
+        o.CustomerId,
+        o.ShippingAddress,
+        o.BillingAddress,
+        o.Notes,
+        o.OrderItems.Select(oi => new OrderModel.OrderItemResponse(
+            oi.ProductId,
+            oi.Product.Name,
+            oi.UnitPrice,
+            oi.Quantity,
+            oi.SubTotal
+        )).ToList(), o.Status.ToString())).ToList();    
+    }
 
-            return new OrderDto(
-                order.Id,
-                order.CustomerId,
-                order.CreatedAt,
-                order.Subtotal,
-                order.Total,
-                order.Status.ToString(),
-                order.Items.Select(i => new OrderItemDetailDto(
-                    i.ProductId,
-                    i.ProductName,
-                    i.UnitPrice,
-                    i.Quantity,
-                    i.LineTotal)));
-        }
+    public async Task<OrderModel.OrderResponse> UpdateOrderStatus(Guid id, OrderModel.OrderStatusRequest request)
+    {
+        var order = await _repository.GetById<Order>(id, include: new[] { "OrderItems", "OrderItems.Product" });
+        if (order == null)
+            throw new EntityNotFoundException($"No se encontró un producto con el ID {id}");
+
+        if (string.IsNullOrWhiteSpace(request.OrderStatus))
+            throw new ArgumentException("El estado del pedido no puede estar vacío.");
+
+        if(!Enum.TryParse<OrderStatus>(request.OrderStatus, true, out var newStatus))
+            throw new InvalidOperationException($"El estado '{request.OrderStatus}'no válido.");
+
+        order.Status = newStatus;
+        await _repository.Update(order);
+
+        return new OrderModel.OrderResponse(
+            order.Id,
+            order.CustomerId,
+            order.ShippingAddress,
+            order.BillingAddress,
+            order.Notes,
+            order.OrderItems.Select(oi => new OrderModel.OrderItemResponse(
+                oi.ProductId,
+                oi.Product.Name,
+                oi.UnitPrice,
+                oi.Quantity,
+                oi.SubTotal
+            )).ToList(),
+            order.Status.ToString()
+        );
     }
 }

@@ -1,19 +1,23 @@
-﻿namespace Dsw2025Tpi.Domain.Entities;
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+
+namespace Dsw2025Tpi.Domain.Entities;
+
 public class Product : EntityBase
 {
-    public string? Sku { get; set; }
-    public string? InternalCode { get; set; }
-    public string? Name { get; set; }
-    public string? Description { get; set; }
+    public string Sku { get; set; }
+    public string InternalCode { get; set; }
+    public string Name { get; set; }
+    public string Description { get; set; }
     public decimal CurrentUnitPrice { get; set; }
     public int StockQuantity { get; set; }
     public bool IsActive { get; set; }
 
-    public Product() { }
-
     public Product(string sku, string internalCode, string name, string description, decimal currentUnitPrice, int stockQuantity)
     {
-        Id = Guid.NewGuid();
         Sku = sku;
         InternalCode = internalCode;
         Name = name;
@@ -23,5 +27,13 @@ public class Product : EntityBase
         IsActive = true;
     }
 
-    //public ICollection<OrderItem> OrderItems { get; set; } = new List<OrderItem>();
+    public bool HasSufficientStock(int quantity)
+    {
+        return StockQuantity >= quantity;
+    }
+
+    public void DecreaseStock(int quantity)
+    {
+        StockQuantity -= quantity;
+    }
 }

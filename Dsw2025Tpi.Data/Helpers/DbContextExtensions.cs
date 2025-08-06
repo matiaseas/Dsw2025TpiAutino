@@ -1,10 +1,17 @@
-﻿using System.Text.Json;
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Runtime.CompilerServices;
+using System.Text;
+using System.Text.Json;
+using System.Text.Json.Serialization;
+using System.Threading.Tasks;
 
 namespace Dsw2025Tpi.Data.Helpers;
 
 public static class DbContextExtensions
 {
-    public static void Seedwork<T>(this Dsw2025TpiContext context, string dataSource) where T : class
+    public static void SeedWork<T>(this Dsw2025TpiContext context, string dataSource) where T : class
     {
         if (context.Set<T>().Any()) return;
         var json = File.ReadAllText(Path.Combine(AppContext.BaseDirectory, dataSource));
@@ -12,8 +19,20 @@ public static class DbContextExtensions
         {
             PropertyNameCaseInsensitive = true,
         });
-        if (entities == null || entities.Count == 0) return;
-        context.Set<T>().AddRange(entities);
-        context.SaveChanges();
+        if(entities == null || entities.Count == 0) return;
+        try
+        {
+            context.Set<T>().AddRange(entities);
+            context.SaveChanges();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error al guardar los cambios: {ex.Message}");
+            if (ex.InnerException != null)
+            {
+                Console.WriteLine($"Excepción interna: {ex.InnerException.Message}");
+            }
+            throw;
+        }
     }
 }

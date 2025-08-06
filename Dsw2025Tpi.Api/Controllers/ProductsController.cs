@@ -1,87 +1,130 @@
-﻿using Dsw2025Tpi.Application.Dtos;
-using Dsw2025Tpi.Application.Services;
+﻿using Dsw2025Ej15.Application.Exceptions;
+using Dsw2025Tpi.Application.Dtos;
+using Dsw2025Tpi.Application.Interfaces;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Identity.Client;
+using System.Threading.Tasks;
 
-namespace Dsw2025Tpi.Api.Controllers
+namespace Dsw2025Tpi.Api.Controllers;
+
+[ApiController]
+[Route("api/products/")]
+[Authorize]
+public class ProductsController : ControllerBase
 {
-    [ApiController]
-    [Route("api/[controller]")]
-    public class ProductsController : ControllerBase
+    private readonly IProductsManagementService _service;
+    public ProductsController(IProductsManagementService service)
     {
-        private readonly ProductsManagementService _service;
+        _service = service;
+    }
 
-        public ProductsController(ProductsManagementService service)
+    [HttpGet()]
+    public async Task<IActionResult> GetAllProducts()
+    {
+        try
         {
-            _service = service;
+            var products = await _service.GetProducts();
+            return Ok(products);
         }
-
-        /// Crea un nuevo producto.
-        [HttpPost]
-        [ProducesResponseType(typeof(ProductDto), 201)]
-        [ProducesResponseType(400)]
-        public async Task<IActionResult> Create([FromBody] ProductCreateDto dto)
+        catch (EntityNotFoundException enfe)
         {
-            if (!ModelState.IsValid)
-                return BadRequest(ModelState);
-
-            var created = await _service.CreateProductAsync(dto);
-            return CreatedAtAction(nameof(GetById), new { id = created.Id }, created);
+            return StatusCode(204, enfe.Message);
         }
-
-        /// Obtiene la lista de todos los productos.
-        [HttpGet]
-        [ProducesResponseType(typeof(IEnumerable<ProductDto>), 200)]
-        [ProducesResponseType(204)]
-        public async Task<IActionResult> GetAll()
+        catch (Exception ex)
         {
-            var list = await _service.GetAllProductsAsync();
-            if (list == null || !list.Any())
-                return NoContent();
+            return Problem(ex.Message);
+        }     
+    }
 
-            return Ok(list);
-        }
-
-        /// Obtiene un producto por su ID.
-        [HttpGet("{id}")]
-        [ProducesResponseType(typeof(ProductDto), 200)]
-        [ProducesResponseType(404)]
-        public async Task<IActionResult> GetById(Guid id)
+    [HttpGet("{id}")]
+    public async Task<IActionResult> GetProduct(Guid id)
+    {
+        try
         {
-            var product = await _service.GetProductByIdAsync(id);
-            if (product == null)
-                return NotFound();
-
+            var product = await _service.GetProductById(id);
             return Ok(product);
         }
-
-        /// Actualiza un producto existente.
-        [HttpPut("{id}")]
-        [ProducesResponseType(typeof(ProductDto), 200)]
-        [ProducesResponseType(400)]
-        [ProducesResponseType(404)]
-        public async Task<IActionResult> Update(Guid id, [FromBody] ProductUpdateDto dto)
+        catch (EntityNotFoundException enfe)
         {
-            if (!ModelState.IsValid)
-                return BadRequest(ModelState);
-
-            var updated = await _service.UpdateProductAsync(id, dto);
-            if (updated == null)
-                return NotFound();
-
-            return Ok(updated);
+            return NotFound(enfe.Message);
+        }
+        catch (Exception ex)
+        {
+            return Problem(ex.Message);
         }
 
-        /// Deshabilita (soft delete) un producto.
-        [HttpPatch("{id}")]
-        [ProducesResponseType(204)]
-        [ProducesResponseType(404)]
-        public async Task<IActionResult> Disable(Guid id)
-        {
-            var success = await _service.DisableProductAsync(id);
-            if (!success)
-                return NotFound();
+    }
 
-            return NoContent();
+    [HttpPost]
+    public async Task<IActionResult> AddProduct([FromBody]ProductModel.ProductRequest request)
+    {
+        try
+        {
+            var product = await _service.AddProduct(request);
+            return Created("/product",product);
+        }
+        catch (ArgumentException ae)
+        {
+            return BadRequest(ae.Message);
+        }
+        catch (DuplicatedEntityException de)
+        {
+            return BadRequest(de.Message);
+        }
+        catch (Exception ex)
+        {
+            return Problem(ex.Message);
+        }
+    }
+
+    [HttpPut("{id}")]
+    public async Task<IActionResult> UpdateProduct(Guid id, [FromBody] ProductModel.ProductRequest request)
+    {
+        try
+        {
+            var updatedProduct = await _service.Update(id, request);
+            if (updatedProduct == null) throw new EntityNotFoundException($"No se encontró un producto con el ID {id}");
+            return Ok(updatedProduct);
+        }
+        catch (EntityNotFoundException ef)
+        {
+            return NotFound(ef.Message);
+        }
+        catch (ArgumentException ae)
+        {
+            return BadRequest(ae.Message);
+        }
+        catch (DuplicatedEntityException de)
+        {
+            return Conflict(de.Message);
+        }
+        catch (Exception ex)
+        {
+            return Problem(ex.Message);
+        }
+    }
+
+    [HttpPatch("{id}")]
+    public async Task<IActionResult> ToggleProductStatus(Guid id)
+    {
+        try
+        {
+            var updatedProduct = await _service.ToggleStatus(id);
+            if (updatedProduct == null) throw new EntityNotFoundException($"No se encontró un producto con el ID {id}");
+            return Ok(updatedProduct);
+        }
+        catch (EntityNotFoundException ef)
+        {
+            return NotFound(ef.Message);
+        }
+        catch (ArgumentException ae)
+        {
+            return BadRequest(ae.Message);
+        }
+        catch (Exception ex)
+        {
+            return Problem(ex.Message);
         }
     }
 }

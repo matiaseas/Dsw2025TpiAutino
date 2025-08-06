@@ -1,147 +1,138 @@
-﻿using Dsw2025Tpi.Application.Dtos;
+﻿using Azure.Core;
+using Dsw2025Ej15.Application.Exceptions;
+using Dsw2025Tpi.Application.Dtos;
+using Dsw2025Tpi.Application.Interfaces;
 using Dsw2025Tpi.Domain.Entities;
 using Dsw2025Tpi.Domain.Interfaces;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using static Dsw2025Tpi.Application.Dtos.ProductModel;
 
-namespace Dsw2025Tpi.Application.Services
+namespace Dsw2025Tpi.Application.Services;
+
+public class ProductsManagementService : IProductsManagementService
 {
-    public class ProductsManagementService
+    private readonly IRepository _repository;
+
+    public ProductsManagementService(IRepository repository)
     {
-        private readonly IRepository _repository;
+        _repository = repository;
 
-        public ProductsManagementService(IRepository repository)
+    }
+    public void ValidateRequest(ProductRequest request)
+    {
+        var errors = new List<string>();
+
+        if (string.IsNullOrWhiteSpace(request.Sku))
+            errors.Add("El SKU no puede estar vacío.");
+        if (string.IsNullOrWhiteSpace(request.Name))
+            errors.Add("El nombre no puede estar vacío.");
+        if (request.CurrentUnitPrice <= 0)
+            errors.Add("El precio unitario debe ser mayor a 0.");
+        if (request.StockQuantity < 0)
+            errors.Add("La cantidad en stock no puede ser negativa.");
+        if (errors.Any())
+            throw new ArgumentException(string.Join(" | ", errors));
+    }
+
+    private ProductModel.ProductResponse MapToResponse(Product product)
+    {
+        return new ProductModel.ProductResponse(
+            product.Id,
+            product.Sku,
+            product.InternalCode,
+            product.Name,
+            product.Description,
+            product.CurrentUnitPrice,
+            product.StockQuantity,
+            product.IsActive);
+    }
+
+    public async Task<ProductModel.ProductResponse?> GetProductById(Guid id)
+    {
+        var product = await _repository.GetById<Product>(id);
+        if (product == null)
+            throw new EntityNotFoundException($"No existe el producto con Id: {id}");
+        return product != null ? new ProductModel.ProductResponse(
+            product.Id,
+            product.Sku,
+            product.InternalCode,
+            product.Name,
+            product.Description,
+            product.CurrentUnitPrice,
+            product.StockQuantity,
+            product.IsActive)
+            : null;
+    }
+
+    public async Task<IEnumerable<ProductModel.ProductResponse>?> GetProducts()
+    {
+        var products = await _repository.GetFiltered<Product>(p => p.IsActive);
+        if(products == null || !products.Any()) 
+            throw new EntityNotFoundException("No hay productos cargados");
+        return products?.Select(MapToResponse);
+    }
+
+    public async Task<ProductModel.ProductResponse> AddProduct(ProductModel.ProductRequest request)
+    {
+        ValidateRequest(request);
+
+        var exist = await _repository.First<Product>(p => p.Sku == request.Sku);
+        if (exist != null) 
+            throw new DuplicatedEntityException($"Ya existe un producto con el Sku {request.Sku}");
+
+        var product = new Product(request.Sku,
+            request.InternalCode,
+            request.Name,
+            request.Description,
+            request.CurrentUnitPrice,
+            request.StockQuantity);
+
+        await _repository.Add(product);
+
+        return MapToResponse(product);
+    }
+
+    public async Task<ProductModel.ProductResponse?> Update(Guid id, ProductModel.ProductRequest request)
+    {
+        var product = await _repository.GetById<Product>(id);
+        if (product == null)
+            throw new EntityNotFoundException($"No se encontró un producto con el ID {id}");
+
+        ValidateRequest(request);
+
+        if(request.Sku != product.Sku)
         {
-            _repository = repository;
+            var exist = await _repository.First<Product>(p => p.Sku == request.Sku);
+            if (exist != null) 
+                throw new DuplicatedEntityException($"Ya existe un producto con el Sku {request.Sku}");
         }
 
-        /// <summary>
-        /// Crea un nuevo producto.
-        /// </summary>
-        public async Task<ProductDto> CreateProductAsync(ProductCreateDto dto)
-        {
-            // Validaciones básicas
-            if (string.IsNullOrWhiteSpace(dto.Sku) ||
-                string.IsNullOrWhiteSpace(dto.InternalCode) ||
-                string.IsNullOrWhiteSpace(dto.Name) ||
-                dto.CurrentUnitPrice <= 0 ||
-                dto.StockQuantity < 0)
-            {
-                throw new ArgumentException("Datos de producto inválidos.");
-            }
+        product.Sku = request.Sku;
+        product.InternalCode = request.InternalCode;
+        product.Name = request.Name;
+        product.Description = request.Description;
+        product.CurrentUnitPrice = request.CurrentUnitPrice;
+        product.StockQuantity = request.StockQuantity;
 
-            // Verificar SKU único
-            var existing = await _repository.First<Product>(p => p.Sku == dto.Sku);
-            if (existing != null)
-                throw new ArgumentException($"Ya existe un producto con SKU {dto.Sku}.");
+        var updatedProduct = await _repository.Update(product);
 
-            // Crear entidad
-            var product = new Product(
-                dto.Sku,
-                dto.InternalCode,
-                dto.Name,
-                dto.Description,
-                dto.CurrentUnitPrice,
-                dto.StockQuantity
-            );
+        return MapToResponse(product);
+    }
 
-            // Persistir
-            await _repository.Add(product);
+    public async Task<ProductModel.ProductResponse?> ToggleStatus(Guid id)
+    {
+        var product = await _repository.GetById<Product>(id);
+        if (product == null)
+            throw new EntityNotFoundException($"No se encontró un producto con el ID {id}");
 
-            // Mapear a DTO
-            return new ProductDto(
-                product.Id,
-                product.Sku!,
-                product.InternalCode!,
-                product.Name!,
-                product.Description!,
-                product.CurrentUnitPrice,
-                product.StockQuantity,
-                product.IsActive
-            );
-        }
+        product.IsActive = false;
 
-        /// <summary>
-        /// Obtiene todos los productos activos.
-        /// </summary>
-        public async Task<IEnumerable<ProductDto>> GetAllProductsAsync()
-        {
-            var products = await _repository.GetAll<Product>();
-            return (products ?? Array.Empty<Product>())
-                .Where(p => p.IsActive)
-                .Select(p => new ProductDto(
-                    p.Id,
-                    p.Sku!,
-                    p.InternalCode!,
-                    p.Name!,
-                    p.Description!,
-                    p.CurrentUnitPrice,
-                    p.StockQuantity,
-                    p.IsActive))
-                .ToList();
-        }
+        var updatedProduct = await _repository.Update(product);
 
-        /// <summary>
-        /// Obtiene un producto por su ID.
-        /// </summary>
-        public async Task<ProductDto?> GetProductByIdAsync(Guid id)
-        {
-            var p = await _repository.GetById<Product>(id);
-            if (p == null || !p.IsActive)
-                return null;
-
-            return new ProductDto(
-                p.Id,
-                p.Sku!,
-                p.InternalCode!,
-                p.Name!,
-                p.Description!,
-                p.CurrentUnitPrice,
-                p.StockQuantity,
-                p.IsActive);
-        }
-
-        /// <summary>
-        /// Actualiza un producto existente.
-        /// </summary>
-        public async Task<ProductDto?> UpdateProductAsync(Guid id, ProductUpdateDto dto)
-        {
-            var p = await _repository.GetById<Product>(id);
-            if (p == null)
-                return null;
-
-            // Actualizar campos
-            p.Sku = dto.Sku;
-            p.InternalCode = dto.InternalCode;
-            p.Name = dto.Name;
-            p.Description = dto.Description;
-            p.CurrentUnitPrice = dto.CurrentUnitPrice;
-            p.StockQuantity = dto.StockQuantity;
-            p.IsActive = dto.IsActive;
-
-            await _repository.Update(p);
-
-            return new ProductDto(
-                p.Id,
-                p.Sku!,
-                p.InternalCode!,
-                p.Name!,
-                p.Description!,
-                p.CurrentUnitPrice,
-                p.StockQuantity,
-                p.IsActive);
-        }
-
-        /// <summary>
-        /// Deshabilita (soft delete) un producto.
-        /// </summary>
-        public async Task<bool> DisableProductAsync(Guid id)
-        {
-            var p = await _repository.GetById<Product>(id);
-            if (p == null)
-                return false;
-
-            p.IsActive = false;
-            await _repository.Update(p);
-            return true;
-        }
+        return MapToResponse(product);
     }
 }

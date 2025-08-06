@@ -1,78 +1,104 @@
-﻿using Dsw2025Tpi.Application.DTOs;
-using Dsw2025Tpi.Application.Services;
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
+using Dsw2025Tpi.Application.Dtos;
+using Dsw2025Ej15.Application.Exceptions;
+using Dsw2025Tpi.Application.Interfaces;
+using Microsoft.AspNetCore.Authorization;
 
-namespace Dsw2025Tpi.Api.Controllers
+namespace Dsw2025Ej15.Api.Controllers;
+
+[ApiController]
+[Route("api/orders/")]
+[Authorize]
+public class OrdersController : ControllerBase
 {
-    [ApiController]
-    [Route("api/[controller]")]
-    public class OrdersController : ControllerBase
+    private readonly IOrdersManagementService _service;
+    public OrdersController(IOrdersManagementService service)
     {
-        private readonly OrdersManagementService _service;
+        _service = service;
+    }
 
-        public OrdersController(OrdersManagementService service)
+    [HttpGet]//7
+    public async Task<IActionResult> GetAllOrders()
+    {
+        try
         {
-            _service = service;
+            var orders = await _service.GetOrders();
+            return Ok(orders);
+        }
+        catch (EntityNotFoundException enfe)
+        {
+            return StatusCode(204, enfe.Message);
+        }
+        catch (Exception ex)
+        {
+            return Problem(ex.Message);
         }
 
-        /// <summary>
-        /// Crea una nueva orden.
-        /// </summary>
-        [HttpPost]
-        [ProducesResponseType(typeof(OrderDto), 201)]
-        [ProducesResponseType(400)]
-        public async Task<IActionResult> Create([FromBody] OrderCreateDto dto)
-        {
-            if (!ModelState.IsValid)
-                return BadRequest(ModelState);
+    }
 
-            var result = await _service.CreateOrderAsync(dto);
-            return CreatedAtAction(nameof(GetById), new { id = result.Id }, result);
+    [HttpPost]//6
+    public async Task<IActionResult> CreateOrder([FromBody] OrderModel.OrderRequest request)
+    {
+        try
+        {
+            var order = await _service.AddOrder(request);
+            return Created("api/order", order);
         }
-
-        /// <summary>
-        /// Obtiene las órdenes paginadas.
-        /// </summary>
-        [HttpGet]
-        [ProducesResponseType(typeof(PagedResult<OrderDto>), 200)]
-        public async Task<IActionResult> GetAll([FromQuery] OrderQueryParameters query)
+        catch (ArgumentException ex)
         {
-            var result = await _service.GetOrdersAsync(query.PageNumber, query.PageSize);
-            return Ok(result);
+            return BadRequest(ex.Message);
         }
-
-        /// <summary>
-        /// Obtiene una orden por su ID.
-        /// </summary>
-        [HttpGet("{id}")]
-        [ProducesResponseType(typeof(OrderDto), 200)]
-        [ProducesResponseType(404)]
-        public async Task<IActionResult> GetById(Guid id)
+        catch (InvalidOperationException io)
         {
-            var order = await _service.GetOrderByIdAsync(id);
-            if (order == null)
-                return NotFound();
+            return BadRequest(io.Message);
+        }
+        catch (EntityNotFoundException enfe)
+        {
+            return NotFound(enfe.Message);
+        }
+        catch (Exception ex)
+        {
+            return Problem(ex.Message);
+        }
+    }
 
+    [HttpGet("{id}")]//8
+    public async Task<IActionResult> GetOrderById(Guid id)
+    {
+        try
+        {
+            var order = await _service.GetOrderById(id);
             return Ok(order);
         }
-
-        /// <summary>
-        /// Actualiza el estado de una orden.
-        /// </summary>
-        [HttpPut("{id}/status")]
-        [ProducesResponseType(typeof(OrderDto), 200)]
-        [ProducesResponseType(400)]
-        [ProducesResponseType(404)]
-        public async Task<IActionResult> UpdateStatus(Guid id, [FromBody] OrderStatusUpdateDto dto)
+        catch (EntityNotFoundException enfe)
         {
-            if (!ModelState.IsValid)
-                return BadRequest(ModelState);
+            return NotFound(enfe.Message);
+        }
+        catch (Exception ex)
+        {
+            return Problem(ex.Message);
+        }
+    }
 
-            var updated = await _service.UpdateOrderStatusAsync(id, dto.Status);
-            if (updated == null)
-                return NotFound();
-
-            return Ok(updated);
+    [HttpPut("{id}/status")]//9
+    public async Task<IActionResult> UpdateOrderStatus(Guid id, [FromBody] OrderModel.OrderStatusRequest request)
+    {
+        try
+        {
+            var order = await _service.UpdateOrderStatus(id, request);
+            return Ok(order);
+        }
+        catch (EntityNotFoundException enfe)
+        {
+            return NotFound(enfe.Message);
+        }
+        catch (ArgumentException ae)
+        {
+            return BadRequest(ae.Message);
+        }
+        catch (Exception ex)
+        {
+            return Problem(ex.Message);
         }
     }
 }
